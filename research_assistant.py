@@ -3,10 +3,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, TypedDict
+import argparse
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from langchain_tavily import TavilySearch
 from langgraph.types import Send
 from langgraph.graph import END, START, StateGraph
@@ -21,11 +23,15 @@ class NewsletterState(TypedDict):
     newsletter: str
 
 
-def get_llm():
+def get_llm(ollama_model: str = "llama3.2", temperature: float = 0.7):
+    # default to run local models to save tokens
+    if ollama_model:
+        return ChatOllama(model=ollama_model, temperature=temperature)
+
     if os.environ.get("GOOGLE_API_KEY"):
-        return ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+        return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=temperature)
     if os.environ.get("OPENAI_API_KEY"):
-        return ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+        return ChatOpenAI(model="gpt-4o-mini", temperature=temperature)
     else:
         raise RuntimeError(
             "No LLM API key found. Please set either GOOGLE_API_KEY or OPENAI_API_KEY in your environment variables."
@@ -42,7 +48,7 @@ def collect_news(state: NewsletterState):
         try:
             tavily_search = TavilySearch(max_results=3)
             query_string = "recent headline news" + (f" about {topic}" if topic else "")
-            
+
             raw_results = tavily_search.invoke({"query": query_string})
             search_results = raw_results.get("results", raw_results) if isinstance(raw_results, dict) else raw_results
             items = []
@@ -143,12 +149,14 @@ def finalize_newsletter(state: NewsletterState):
     This issue is a fictional newsletter inspired by real events, written to feel plausible without claiming to be factual.
     """
 
-    output_path = Path("outputs/daily_newsletter.md")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(newsletter, encoding="utf-8")
-
     return {"newsletter": newsletter}
 
+def output_newsletter(state: NewsletterState, output_path: str):
+    newsletter = state.get("newsletter", "")
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(newsletter, encoding="utf-8")
+    return {"output_path": str(output_path)}
 
 builder = StateGraph(NewsletterState)
 builder.add_node("collect_news", collect_news)
@@ -168,8 +176,13 @@ graph = builder.compile()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate a fictional newsletter.")
+    parser.add_argument("--topic", type=str, default="", help="Topic for the newsletter (optional).")
+    parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md", help="Output path for the generated newsletter.")
+
+    args = parser.parse_args()
     initial_state = {
-        "topic": "",
+        "topic": args.topic,
         "news_items": [],
         "article_drafts": [],
         "hybrid_story": "",
@@ -178,3 +191,5 @@ if __name__ == "__main__":
     }
     result = graph.invoke(initial_state)
     print(result["newsletter"])
+
+    output_result = output_newsletter(result, args.output)
