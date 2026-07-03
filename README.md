@@ -7,7 +7,15 @@ This project adapts the [LangGraph research-assistant example](https://github.co
 - A creative editor merges those drafts into a single hybrid story.
 - A fact-checker and creativity evaluator reviews the final piece before it is saved.
 
-## Run it
+## Installation
+
+```
+python3 -m pip install -r requirements.txt
+```
+
+## Run
+
+Make sure your ```TAVILY_API_KEY``` environment variable is set.
 
 ```bash
 python3 research_assistant.py
@@ -15,3 +23,7 @@ python3 research_assistant.py
 with the ```-h``` flag to see available run-time options.
 
 If you have API keys configured for OpenAI or Google Generative AI, the workflow can use them. By default it uses a local LLM model (llama3.2).
+
+## Substack
+
+You can subscribe [here](https://creativefictionalnewsagency.substack.com/) to receive the generated stories as newsletters.
