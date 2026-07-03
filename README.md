@@ -26,4 +26,4 @@ If you have API keys configured for OpenAI or Google Generative AI, the workflow
 
 ## Substack
 
-You can subscribe [here](https://liyiwei.substack.com/?utm_campaign=email-home&r=52pf32) to receive the generated stories as newsletters.
+You can subscribe [here](https://creativefictionalnewsagency.substack.com/) to receive the generated stories as newsletters.
