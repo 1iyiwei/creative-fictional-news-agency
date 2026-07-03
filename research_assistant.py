@@ -156,18 +156,22 @@ def evaluate_story(state: NewsletterState):
 def finalize_newsletter(state: NewsletterState):
     today = datetime.now().strftime("%B %d, %Y")
     topic = state.get("topic", "daily dispatch")
-    newsletter = f"""# The Midnight Ledger
-    ## {today}
-    ### {topic}
+    newsletter = f"""
+# The Midnight Ledger
+## {today}
+### {topic}
 
-    {state['hybrid_story']}
+{state['hybrid_story']}
 
-    ### Editorial Review
-    {state['evaluation']}
+### Sources
+{', '.join([draft['source_title'] for draft in state.get('article_drafts', [])])}
 
-    ---
-    This issue is a fictional newsletter inspired by real events, written to feel plausible without claiming to be factual.
-    """
+### Editorial Review
+{state['evaluation']}
+
+---
+This issue is a fictional newsletter inspired by real events, written to feel plausible without claiming to be factual.
+"""
 
     return {"newsletter": newsletter}
 
@@ -219,6 +223,6 @@ if __name__ == "__main__":
     }
     result = graph.invoke(initial_state)
 
-    print(result["newsletter"])
-
     output_result = output_newsletter(result, args.output)
+
+    print(f"Newsletter generated and saved to: {output_result['output_path']}")
