@@ -1,6 +1,6 @@
 # Creative Fictional News Agency
 
-This project adapts the LangGraph research-assistant pattern into a fictional newsletter studio. A small graph now coordinates four steps:
+This project adapts the [LangGraph research-assistant example](https://github.com/langchain-ai/langchain-academy/blob/main/module-4/studio/research_assistant.py) into a fictional newsletter studio. A small graph now coordinates four steps:
 
 - News collector gathers inspiration from recent headlines.
 - Fiction writers turn each headline into a clearly fictional article.
@@ -10,9 +10,8 @@ This project adapts the LangGraph research-assistant pattern into a fictional ne
 ## Run it
 
 ```bash
-python research_assistant.py
+python3 research_assistant.py
 ```
+with the ```-h``` flag to see available run-time options.
 
-The generated newsletter will be written to outputs/daily_newsletter.md.
-
-If you have API keys configured for OpenAI or Google Generative AI, the workflow can use them. Otherwise it will fall back to a built-in draft so you can still run the pipeline locally.
+If you have API keys configured for OpenAI or Google Generative AI, the workflow can use them. By default it uses a local LLM model (llama3.2).

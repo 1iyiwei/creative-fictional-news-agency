@@ -13,12 +13,17 @@ from langchain_tavily import TavilySearch
 from langgraph.types import Send
 from langgraph.graph import END, START, StateGraph
 
+# constants
+DEFAULT_OLLAMA_MODEL = "llama3.2"
+DEFAULT_MODEL_TEMPERATURE = 0.7
+DEFAULT_MAX_NEWS_ITEMS = 2
 
 class NewsletterState(TypedDict):
     llm_model: str
     llm_temperature: float
     llm: object
     topic: str
+    max_news_items: int
     news_items: Annotated[list, operator.add]
     article_drafts: Annotated[list, operator.add]
     hybrid_story: str
@@ -26,7 +31,7 @@ class NewsletterState(TypedDict):
     newsletter: str
 
 
-def get_llm(ollama_model: str = "llama3.2", temperature: float = 0.7):
+def get_llm(ollama_model: str, temperature: float):
     # default to run local models to save tokens
     if ollama_model:
         return ChatOllama(model=ollama_model, temperature=temperature)
@@ -43,12 +48,14 @@ def get_llm(ollama_model: str = "llama3.2", temperature: float = 0.7):
 
 
 def build_llm(state: NewsletterState):
-    model = state.get("llm_model", "llama3.2")
-    temperature = state.get("llm_temperature", 0.7)
+    model = state.get("llm_model", DEFAULT_OLLAMA_MODEL)
+    temperature = state.get("llm_temperature", DEFAULT_MODEL_TEMPERATURE)
     llm = get_llm(ollama_model=model, temperature=temperature)
     return {"llm": llm}
 
+
 def collect_news(state: NewsletterState):
+    max_news_items = state.get("max_news_items", DEFAULT_MAX_NEWS_ITEMS)
     topic = state.get("topic", "")
     llm = state.get("llm")
 
@@ -57,13 +64,13 @@ def collect_news(state: NewsletterState):
 
     if os.environ.get("TAVILY_API_KEY"):
         try:
-            tavily_search = TavilySearch(max_results=3)
+            tavily_search = TavilySearch(max_results=max_news_items)
             query_string = "recent headline news" + (f" about {topic}" if topic else "")
 
             raw_results = tavily_search.invoke({"query": query_string})
             search_results = raw_results.get("results", raw_results) if isinstance(raw_results, dict) else raw_results
             items = []
-            for result in search_results[:3]:
+            for result in search_results[:max_news_items]:
                 if isinstance(result, dict):
                     items.append(
                         {
@@ -205,14 +212,16 @@ if __name__ == "__main__":
     parser.add_argument("--topic", type=str, default="", help="Topic for the newsletter (optional).")
     parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md",
      help="Output path for the generated newsletter.")
-    parser.add_argument("--ollama-model", type=str, default="llama3.2", help="Ollama model to use (optional).")
-    parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for the LLM (optional).")
+    parser.add_argument("--ollama-model", type=str, default=DEFAULT_OLLAMA_MODEL, help="Ollama model to use (optional).")
+    parser.add_argument("--temperature", type=float, default=DEFAULT_MODEL_TEMPERATURE, help="Temperature for the LLM (optional).")
+    parser.add_argument("--max-news-items", type=int, default=DEFAULT_MAX_NEWS_ITEMS, help="Maximum number of news items to fetch (optional).")
 
     args = parser.parse_args()
 
     initial_state = {
         "llm_model": args.ollama_model,
         "llm_temperature": args.temperature,
+        "max_news_items": args.max_news_items,
         "llm": None,
         "topic": args.topic,
         "news_items": [],
