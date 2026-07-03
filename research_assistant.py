@@ -15,6 +15,9 @@ from langgraph.graph import END, START, StateGraph
 
 
 class NewsletterState(TypedDict):
+    llm_model: str
+    llm_temperature: float
+    llm: object
     topic: str
     news_items: Annotated[list, operator.add]
     article_drafts: Annotated[list, operator.add]
@@ -39,12 +42,20 @@ def get_llm(ollama_model: str = "llama3.2", temperature: float = 0.7):
     return None
 
 
-llm = get_llm()
+def build_llm(state: NewsletterState):
+    model = state.get("llm_model", "llama3.2")
+    temperature = state.get("llm_temperature", 0.7)
+    llm = get_llm(ollama_model=model, temperature=temperature)
+    return {"llm": llm}
 
 def collect_news(state: NewsletterState):
     topic = state.get("topic", "")
+    llm = state.get("llm")
 
-    if llm is not None and os.environ.get("TAVILY_API_KEY"):
+    if not llm:
+        raise RuntimeError("LLM is not initialized. Please ensure the LLM is built before collecting news.")
+
+    if os.environ.get("TAVILY_API_KEY"):
         try:
             tavily_search = TavilySearch(max_results=3)
             query_string = "recent headline news" + (f" about {topic}" if topic else "")
@@ -74,14 +85,19 @@ def collect_news(state: NewsletterState):
 
 def dispatch_writers(state: NewsletterState):
     news_items = state.get("news_items", [])
+    llm = state.get("llm")
     return [
-        Send("write_article", {"news_item": item, "topic": state.get("topic")})
+        Send("write_article", {"llm": llm, "news_item": item, "topic": state.get("topic")})
         for item in news_items
     ]
 
 
 def write_article(state: NewsletterState):
     news_item = state["news_item"]
+    llm = state.get("llm")
+
+    if not llm:
+        raise RuntimeError("LLM is not initialized. Please ensure the LLM is built before writing articles.")
 
     system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny.
     """
@@ -103,6 +119,8 @@ def write_article(state: NewsletterState):
 
 
 def synthesize_story(state: NewsletterState):
+    llm = state.get("llm")
+
     drafts = state.get("article_drafts", [])
     joined_drafts = "\n\n".join([f"## {draft['title']}\n{draft['body']}" for draft in drafts])
 
@@ -120,6 +138,8 @@ def synthesize_story(state: NewsletterState):
 
 
 def evaluate_story(state: NewsletterState):
+    llm = state.get("llm")
+
     response = llm.invoke(
         [
             SystemMessage(
@@ -159,13 +179,15 @@ def output_newsletter(state: NewsletterState, output_path: str):
     return {"output_path": str(output_path)}
 
 builder = StateGraph(NewsletterState)
+builder.add_node("build_llm", build_llm)
 builder.add_node("collect_news", collect_news)
 builder.add_node("write_article", write_article)
 builder.add_node("synthesize_story", synthesize_story)
 builder.add_node("evaluate_story", evaluate_story)
 builder.add_node("finalize_newsletter", finalize_newsletter)
 
-builder.add_edge(START, "collect_news")
+builder.add_edge(START, "build_llm")
+builder.add_edge("build_llm", "collect_news")
 builder.add_conditional_edges("collect_news", dispatch_writers, ["write_article"])
 builder.add_edge("write_article", "synthesize_story")
 builder.add_edge("synthesize_story", "evaluate_story")
@@ -174,14 +196,20 @@ builder.add_edge("finalize_newsletter", END)
 
 graph = builder.compile()
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a fictional newsletter.")
     parser.add_argument("--topic", type=str, default="", help="Topic for the newsletter (optional).")
-    parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md", help="Output path for the generated newsletter.")
+    parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md",
+     help="Output path for the generated newsletter.")
+    parser.add_argument("--ollama-model", type=str, default="llama3.2", help="Ollama model to use (optional).")
+    parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for the LLM (optional).")
 
     args = parser.parse_args()
+
     initial_state = {
+        "llm_model": args.ollama_model,
+        "llm_temperature": args.temperature,
+        "llm": None,
         "topic": args.topic,
         "news_items": [],
         "article_drafts": [],
@@ -190,6 +218,7 @@ if __name__ == "__main__":
         "newsletter": "",
     }
     result = graph.invoke(initial_state)
+
     print(result["newsletter"])
 
     output_result = output_newsletter(result, args.output)
