@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
-from langgraph.constants import Send
+from langgraph.types import Send
 from langgraph.graph import END, START, StateGraph
 
 
@@ -26,42 +26,24 @@ def get_llm():
         return ChatGoogleGenerativeAI(model="gemini-2.5-flash")
     if os.environ.get("OPENAI_API_KEY"):
         return ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+    else:
+        raise RuntimeError(
+            "No LLM API key found. Please set either GOOGLE_API_KEY or OPENAI_API_KEY in your environment variables."
+        )
     return None
 
 
 llm = get_llm()
 
-
-def fallback_news_items(topic: str) -> list[dict]:
-    return [
-        {
-            "title": f"{topic.title()} reshapes the city skyline",
-            "summary": "A local transit expansion and a climate adaptation plan collide in a way that feels both practical and uncanny.",
-            "url": "https://example.com/skyline",
-            "topic": topic,
-        },
-        {
-            "title": f"{topic.title()} inspires a midnight market boom",
-            "summary": "Small business owners, artists, and former engineers turn a civic festival into a glittering district-wide phenomenon.",
-            "url": "https://example.com/market",
-            "topic": topic,
-        },
-        {
-            "title": f"{topic.title()} brings the harbor to life",
-            "summary": "Residents begin treating a new waterfront project as an urban legend that quietly alters the rhythms of everyday life.",
-            "url": "https://example.com/harbor",
-            "topic": topic,
-        },
-    ]
-
-
 def collect_news(state: NewsletterState):
-    topic = state.get("topic", "tomorrow's curious headlines")
+    topic = state.get("topic", "")
 
     if llm is not None and os.environ.get("TAVILY_API_KEY"):
         try:
             tavily_search = TavilySearch(max_results=3)
-            raw_results = tavily_search.invoke({"query": f"{topic} recent news"})
+            query_string = "recent headline news" + (f" about {topic}" if topic else "")
+            
+            raw_results = tavily_search.invoke({"query": query_string})
             search_results = raw_results.get("results", raw_results) if isinstance(raw_results, dict) else raw_results
             items = []
             for result in search_results[:3]:
@@ -78,39 +60,33 @@ def collect_news(state: NewsletterState):
                 return {"news_items": items}
         except Exception:
             pass
-
-    return {"news_items": fallback_news_items(topic)}
+    else:
+        raise RuntimeError(
+            "Tavily API key not found. Please set TAVILY_API_KEY in your environment variables to fetch news items."
+        )
 
 
 def dispatch_writers(state: NewsletterState):
     news_items = state.get("news_items", [])
     return [
-        Send("write_article", {"news_item": item, "topic": state.get("topic", "daily dispatch")})
+        Send("write_article", {"news_item": item, "topic": state.get("topic")})
         for item in news_items
     ]
 
 
 def write_article(state: NewsletterState):
     news_item = state["news_item"]
-    topic = state.get("topic", "daily dispatch")
 
-    if llm is not None:
-        system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny.
+    system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny.
+    """
 
-Topic: {topic}
-"""
-        response = llm.invoke(
-            [
-                SystemMessage(content=system_message),
-                HumanMessage(content=f"Write a fictional article inspired by this news item: {news_item['summary']}"),
-            ]
-        )
-        body = response.content
-    else:
-        body = (
-            f"At the edge of the district, the city began treating {news_item['title']} as if it had always been part of its mythology. "
-            f"What looked like a policy announcement became a rumor, then a ritual, then a full civic obsession."
-        )
+    response = llm.invoke(
+        [
+            SystemMessage(content=system_message),
+            HumanMessage(content=f"Write a fictional article inspired by this news item: {news_item['summary']}"),
+        ]
+    )
+    body = response.content
 
     article = {
         "title": f"{news_item['title']} Reimagined",
@@ -124,42 +100,29 @@ def synthesize_story(state: NewsletterState):
     drafts = state.get("article_drafts", [])
     joined_drafts = "\n\n".join([f"## {draft['title']}\n{draft['body']}" for draft in drafts])
 
-    if llm is not None:
-        response = llm.invoke(
-            [
-                SystemMessage(
-                    content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, and clearly fictional."
-                ),
-                HumanMessage(content=f"Combine these drafts into one newsletter story:\n\n{joined_drafts}"),
-            ]
-        )
-        story = response.content
-    else:
-        story = (
-            "The city woke to a strange calm. Across the districts, ordinary headlines had begun to feel like invitations. "
-            "The paper stitched three separate rumors into one impossible morning, and the result felt more true than any single report ever had."
-        )
+    response = llm.invoke(
+        [
+            SystemMessage(
+                content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, and clearly fictional."
+            ),
+            HumanMessage(content=f"Combine these drafts into one newsletter story:\n\n{joined_drafts}"),
+        ]
+    )
+    story = response.content
 
     return {"hybrid_story": story}
 
 
 def evaluate_story(state: NewsletterState):
-    if llm is not None:
-        response = llm.invoke(
-            [
-                SystemMessage(
-                    content="You are a fact checker and creativity evaluator. Review the newsletter story for imaginative flair and for how convincingly it resembles a plausible report without being factual."
-                ),
-                HumanMessage(content=f"Evaluate this newsletter story:\n\n{state['hybrid_story']}"),
-            ]
-        )
-        evaluation = response.content
-    else:
-        evaluation = (
-            "Creativity: 9/10\n"
-            "Apparent factualness: 8/10\n"
-            "Verdict: The piece is imaginative, polished, and convincingly report-like without pretending to be a real factual account."
-        )
+    response = llm.invoke(
+        [
+            SystemMessage(
+                content="You are a fact checker and creativity evaluator. Review the newsletter story for imaginative flair and for how convincingly it resembles a plausible report without being factual."
+            ),
+            HumanMessage(content=f"Evaluate this newsletter story:\n\n{state['hybrid_story']}"),
+        ]
+    )
+    evaluation = response.content
 
     return {"evaluation": evaluation}
 
@@ -168,17 +131,17 @@ def finalize_newsletter(state: NewsletterState):
     today = datetime.now().strftime("%B %d, %Y")
     topic = state.get("topic", "daily dispatch")
     newsletter = f"""# The Midnight Ledger
-## {today}
-### {topic}
+    ## {today}
+    ### {topic}
 
-{state['hybrid_story']}
+    {state['hybrid_story']}
 
-### Editorial Review
-{state['evaluation']}
+    ### Editorial Review
+    {state['evaluation']}
 
----
-This issue is a fictional newsletter inspired by real events, written to feel plausible without claiming to be factual.
-"""
+    ---
+    This issue is a fictional newsletter inspired by real events, written to feel plausible without claiming to be factual.
+    """
 
     output_path = Path("outputs/daily_newsletter.md")
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -206,7 +169,7 @@ graph = builder.compile()
 
 if __name__ == "__main__":
     initial_state = {
-        "topic": "The strange civic stories shaping tomorrow",
+        "topic": "",
         "news_items": [],
         "article_drafts": [],
         "hybrid_story": "",
@@ -215,4 +178,3 @@ if __name__ == "__main__":
     }
     result = graph.invoke(initial_state)
     print(result["newsletter"])
-    print("\nSaved to outputs/daily_newsletter.md")
