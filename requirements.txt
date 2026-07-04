@@ -21,3 +21,4 @@ langchain-google-genai
 langchain-groq
 langchain-xai
 langchain-ollama
+Pillow

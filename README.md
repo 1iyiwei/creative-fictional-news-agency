@@ -5,6 +5,7 @@ This project adapts the [LangGraph research-assistant example](https://github.co
 - News collector gathers inspiration from recent headlines.
 - Fiction writers turn each headline into a clearly fictional article.
 - A creative editor merges those drafts into a single hybrid story.
+- An artist that creates an illustration for the hybrid story.
 - A fact-checker and creativity evaluator reviews the final piece before it is saved.
 
 ## Installation
