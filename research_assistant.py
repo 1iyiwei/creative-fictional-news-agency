@@ -229,6 +229,9 @@ def finalize_newsletter(state: NewsletterState):
 ### Sources
 {', '.join([draft['source_title'] for draft in state.get('article_drafts', [])])}
 
+### Artist's Prompt
+{state['artwork_prompt']}
+
 ### Editorial Review
 {state['evaluation']}
 
@@ -272,14 +275,14 @@ if __name__ == "__main__":
     parser.add_argument("--topic", type=str, default="", help="Topic for the newsletter (optional).")
     parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md",
      help="Output path for the generated newsletter.")
-    parser.add_argument("--model-name", type=str, default=DEFAULT_OLLAMA_MODEL, help="Model to use (optional).")
+    parser.add_argument("--model", type=str, default=DEFAULT_OLLAMA_MODEL, help="Model to use (optional).")
     parser.add_argument("--temperature", type=float, default=DEFAULT_MODEL_TEMPERATURE, help="Temperature for the LLM (optional).")
     parser.add_argument("--max-news-items", type=int, default=DEFAULT_MAX_NEWS_ITEMS, help="Maximum number of news items to fetch (optional).")
 
     args = parser.parse_args()
 
     initial_state = {
-        "llm_model": args.model_name,
+        "llm_model": args.model,
         "llm_temperature": args.temperature,
         "max_news_items": args.max_news_items,
         "llm": None,
@@ -287,6 +290,8 @@ if __name__ == "__main__":
         "news_items": [],
         "article_drafts": [],
         "hybrid_story": "",
+        "artwork_prompt": "",
+        "image_data": "",
         "evaluation": "",
         "newsletter": "",
     }
