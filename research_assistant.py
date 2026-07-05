@@ -35,6 +35,11 @@ class NewsletterState(TypedDict):
     newsletter: str
 
 
+def default_topic() -> str:
+    # from Monday to Sunday, cycle through topics
+    topics = ["World News", "Business", "Finance", "Technology", "Science", "Health", "Culture"]
+    return topics[datetime.now().weekday() % len(topics)]
+
 def get_llm(model_name: str, temperature: float):
     # default to run local models to save tokens
     if "llama" in model_name:
@@ -151,7 +156,7 @@ def synthesize_story(state: NewsletterState):
             SystemMessage(
                 content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, and clearly fictional."
             ),
-            HumanMessage(content=f"Combine these drafts into one newsletter story:\n\n{joined_drafts}"),
+            HumanMessage(content=f"Combine these drafts into one newsletter story and come up with a compelling title :\n\n{joined_drafts}"),
         ]
     )
     story = response.content
@@ -272,9 +277,8 @@ graph = builder.compile()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a fictional newsletter.")
-    parser.add_argument("--topic", type=str, default="", help="Topic for the newsletter (optional).")
-    parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md",
-     help="Output path for the generated newsletter.")
+    parser.add_argument("--topic", type=str, default=default_topic(), help="Topic for the newsletter (optional).")
+    parser.add_argument("--output", type=str, default="outputs/daily_newsletter.md", help="Output path for the generated newsletter.")
     parser.add_argument("--model", type=str, default=DEFAULT_OLLAMA_MODEL, help="Model to use (optional).")
     parser.add_argument("--temperature", type=float, default=DEFAULT_MODEL_TEMPERATURE, help="Temperature for the LLM (optional).")
     parser.add_argument("--max-news-items", type=int, default=DEFAULT_MAX_NEWS_ITEMS, help="Maximum number of news items to fetch (optional).")
