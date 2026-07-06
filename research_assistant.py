@@ -126,7 +126,7 @@ def write_article(state: NewsletterState):
     if not llm:
         raise RuntimeError("LLM is not initialized. Please ensure the LLM is built before writing articles.")
 
-    system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny.
+    system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid and humorous article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny but not overtly absurd.
     """
 
     response = llm.invoke(
