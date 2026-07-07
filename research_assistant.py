@@ -126,7 +126,7 @@ def write_article(state: NewsletterState):
     if not llm:
         raise RuntimeError("LLM is not initialized. Please ensure the LLM is built before writing articles.")
 
-    system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny.
+    system_message = f"""You are a fiction writer for a satirical, elegant newspaper. Create one vivid and humorous article that is clearly fictional, but feels plausible and grounded in the inspiration you are given. Keep the tone polished and slightly uncanny but not overtly absurd.
     """
 
     response = llm.invoke(
@@ -154,7 +154,7 @@ def synthesize_story(state: NewsletterState):
     response = llm.invoke(
         [
             SystemMessage(
-                content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, and clearly fictional."
+                content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, humourous, and clearly fictional."
             ),
             HumanMessage(content=f"Combine these drafts into one newsletter story and come up with a compelling title :\n\n{joined_drafts}"),
         ]
@@ -170,7 +170,7 @@ def generate_artwork_prompt(state: NewsletterState):
     response = llm.invoke(
         [
             SystemMessage(
-                content="You are an artist and creative prompt engineer. Create a detailed text prompt for generating an image that represents the hybrid story. The prompt should be vivid, descriptive, and suitable for a text-to-image generator."
+                content="You are an artist and creative prompt engineer. Create a detailed text prompt for generating an image that represents the hybrid story. The prompt should be vivid, descriptive, humorous, and suitable for a text-to-image generator."
             ),
             HumanMessage(content=f"Create an image prompt for this hybrid story:\n\n{state['hybrid_story']}"),
         ]
@@ -211,7 +211,7 @@ def evaluate_story(state: NewsletterState):
     response = llm.invoke(
         [
             SystemMessage(
-                content="You are a fact checker and creativity evaluator. Review the newsletter story for imaginative flair and for how convincingly it resembles a plausible report without being factual."
+                content="You are a fact checker and creativity evaluator. Review the newsletter story for imaginative flair, humor, and for how convincingly it resembles a plausible report without being factual."
             ),
             HumanMessage(content=f"Evaluate this newsletter story:\n\n{state['hybrid_story']}"),
         ]
