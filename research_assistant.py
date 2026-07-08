@@ -18,7 +18,7 @@ DEFAULT_OLLAMA_MODEL = "llama3.2"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_MODEL_TEMPERATURE = 0.7
-DEFAULT_MAX_NEWS_ITEMS = 2
+DEFAULT_MAX_NEWS_ITEMS = 3
 
 class NewsletterState(TypedDict):
     llm_model: str
@@ -154,7 +154,7 @@ def synthesize_story(state: NewsletterState):
     response = llm.invoke(
         [
             SystemMessage(
-                content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, humourous, and clearly fictional."
+                content="You are a creative editor. Merge several fictional articles into one polished hybrid story for a daily newsletter. Keep it imaginative, cohesive, humourous, and clearly fictional. You do not have to use all the drafts and can choose the most compelling elements to create a single narrative. Ensure the story has a clear beginning, middle, and end."
             ),
             HumanMessage(content=f"Combine these drafts into one newsletter story and come up with a compelling title :\n\n{joined_drafts}"),
         ]
